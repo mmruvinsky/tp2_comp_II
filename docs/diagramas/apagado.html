@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apagado ordenado</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f5f5f5;
+      --color-ink:     #2d3142;
+      --color-muted:   #4f5d75;
+      --color-accent:  #bf4520;
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', 'Noto Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+    .frame { max-width: 1200px; width: 100%; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+    svg { width: 100%; min-width: 960px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Flujo · TP2 Computación II</p>
+    <h1>Apagado ordenado con SIGTERM / SIGINT</h1>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 960 704" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="apagado-title apagado-desc">
+        <title id="apagado-title">Apagado ordenado con SIGTERM o SIGINT</title>
+        <desc id="apagado-desc">Al llegar SIGTERM o SIGINT el servicio deja de aceptar tareas, espera con un límite a las que están en curso, cancela las que no terminaron a tiempo, vuelca el estado a estado_timestamp.json y termina el proceso.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bf4520"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+        <!-- FLECHAS -->
+        <line x1="400" y1="88" x2="400" y2="120" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="400" y1="176" x2="400" y2="208" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="400" y1="264" x2="400" y2="296" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <!-- Sí -->
+        <line x1="400" y1="392" x2="400" y2="436" stroke="#4f5d75" stroke-width="1.2"/>
+        <!-- No -->
+        <line x1="520" y1="344" x2="600" y2="344" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <!-- Cancelar -> unión -->
+        <path d="M 720,372 V 432 Q 720,440 712,440 H 404" fill="none" stroke="#4f5d75" stroke-width="1.2"/>
+        <!-- Unión -> volcar -->
+        <line x1="400" y1="444" x2="400" y2="472" stroke="#bf4520" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <line x1="400" y1="528" x2="400" y2="560" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+        <!-- ETIQUETAS -->
+        <g font-family="'Geist Mono', monospace" font-size="8" text-anchor="middle" letter-spacing="0.06em" fill="#5a6580">
+          <rect x="368" y="406" width="24" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="380" y="415">SÍ</text>
+          <rect x="548" y="324" width="24" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="560" y="333">NO</text>
+        </g>
+
+        <!-- NODOS -->
+        <g font-family="'Geist', sans-serif" text-anchor="middle">
+          <!-- Inicio -->
+          <rect x="280" y="40" width="240" height="48" rx="20" fill="rgba(79,93,117,0.10)" stroke="#5a6580" stroke-width="1"/>
+          <text x="400" y="62" fill="#2d3142" font-size="12" font-weight="600">Llega SIGTERM o SIGINT</text>
+          <text x="400" y="78" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace">docker compose down · Ctrl+C</text>
+
+          <!-- Paso 1 -->
+          <rect x="272" y="120" width="256" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <text x="400" y="145" fill="#2d3142" font-size="12" font-weight="600">Dejar de aceptar tareas</text>
+          <text x="400" y="162" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace">los POST nuevos se rechazan</text>
+
+          <!-- Paso 2 -->
+          <rect x="272" y="208" width="256" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <text x="400" y="233" fill="#2d3142" font-size="12" font-weight="600">Esperar las que están en curso</text>
+          <text x="400" y="250" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace">con un límite de tiempo</text>
+
+          <!-- Decisión -->
+          <polygon points="400,296 520,344 400,392 280,344" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <text x="400" y="348" fill="#2d3142" font-size="12" font-weight="600">¿Terminaron a tiempo?</text>
+
+          <!-- Cancelar restantes -->
+          <rect x="600" y="316" width="240" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <text x="720" y="341" fill="#2d3142" font-size="12" font-weight="600">Cancelar las que quedan</text>
+          <text x="720" y="358" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace">sin dejar corrutinas huérfanas</text>
+
+          <!-- Unión -->
+          <circle cx="400" cy="440" r="4" fill="#2d3142"/>
+
+          <!-- Volcar (focal) -->
+          <rect x="272" y="472" width="256" height="56" rx="6" fill="rgba(191,69,32,0.08)" stroke="#bf4520" stroke-width="1"/>
+          <text x="400" y="497" fill="#2d3142" font-size="12" font-weight="600">Volcar el estado a JSON</text>
+          <text x="400" y="514" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace">estado_&lt;timestamp&gt;.json</text>
+
+          <!-- Fin -->
+          <rect x="280" y="560" width="240" height="48" rx="20" fill="rgba(79,93,117,0.10)" stroke="#5a6580" stroke-width="1"/>
+          <text x="400" y="582" fill="#2d3142" font-size="12" font-weight="600">Termina el proceso</text>
+          <text x="400" y="598" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace">el contenedor se detiene</text>
+        </g>
+
+        <!-- ANOTACIONES -->
+        <text x="936" y="64" fill="#2d3142" font-size="14" font-style="italic" font-family="'Instrument Serif', 'Noto Serif', serif" text-anchor="end">Docker le manda la señal al PID 1 del contenedor.</text>
+        <text x="936" y="82" fill="#2d3142" font-size="14" font-style="italic" font-family="'Instrument Serif', 'Noto Serif', serif" text-anchor="end">Si no termina en unos 10 s, llega SIGKILL.</text>
+        <path d="M 644,70 Q 584,72 524,66" fill="none" stroke="rgba(45,49,66,0.40)" stroke-width="1" stroke-dasharray="4,3"/>
+        <circle cx="522" cy="66" r="2" fill="#2d3142"/>
+
+        <text x="936" y="496" fill="#2d3142" font-size="14" font-style="italic" font-family="'Instrument Serif', 'Noto Serif', serif" text-anchor="end">Al volver a arrancar, si existe un volcado</text>
+        <text x="936" y="514" fill="#2d3142" font-size="14" font-style="italic" font-family="'Instrument Serif', 'Noto Serif', serif" text-anchor="end">previo, se reporta por log.</text>
+        <path d="M 696,505 Q 614,502 532,500" fill="none" stroke="rgba(45,49,66,0.40)" stroke-width="1" stroke-dasharray="4,3"/>
+        <circle cx="530" cy="500" r="2" fill="#2d3142"/>
+
+        <!-- LEYENDA -->
+        <line x1="24" y1="640" x2="936" y2="640" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+        <text x="24" y="658" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.18em">LEYENDA</text>
+        <g font-family="'Geist', sans-serif" font-size="8.5" fill="#4f5d75">
+          <rect x="24" y="674" width="22" height="10" rx="5" fill="rgba(79,93,117,0.10)" stroke="#5a6580" stroke-width="1"/>
+          <text x="52" y="682">Inicio / fin</text>
+          <rect x="148" y="674" width="14" height="10" rx="2" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <text x="168" y="682">Paso</text>
+          <polygon points="252,672 260,679 252,686 244,679" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <text x="268" y="682">Decisión</text>
+          <circle cx="352" cy="679" r="4" fill="#2d3142"/>
+          <text x="362" y="682">Unión de caminos</text>
+          <rect x="472" y="674" width="14" height="10" rx="2" fill="rgba(191,69,32,0.08)" stroke="#bf4520" stroke-width="1"/>
+          <text x="492" y="682">Paso que exige la consigna como salida</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>
