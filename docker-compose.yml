@@ -1,0 +1,14 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      WORKERS: ${WORKERS:-10}
+      MODO_HASH: ${MODO_HASH:-proceso}
+      LIMITE_APAGADO: ${LIMITE_APAGADO:-8}
+      DIR_ESTADO: /srv/datos
+    volumes:
+      - ./datos:/srv/datos
+    # Tiene que superar LIMITE_APAGADO más el cierre; por defecto son 10 s.
+    stop_grace_period: 15s

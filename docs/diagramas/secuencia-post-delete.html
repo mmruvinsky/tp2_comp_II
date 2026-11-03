@@ -46,7 +46,7 @@
       color: var(--color-ink);
       margin-bottom: 1.5rem;
     }
-    svg { width: 100%; min-width: 1000px; display: block; }
+    svg { width: 100%; min-width: 1160px; display: block; }
     @media print {
       .diagram-container { overflow-x: visible; }
       svg { min-width: 0; }
@@ -59,9 +59,9 @@
     <h1>Encargar una tarea y cancelarla en ejecución</h1>
 
     <div class="diagram-container">
-      <svg viewBox="0 0 1000 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="secuencia-title secuencia-desc">
-        <title id="secuencia-title">Encargar una tarea y cancelarla en ejecución</title>
-        <desc id="secuencia-desc">El cliente hace POST, la API encola el id y responde enseguida con el id y estado pendiente; un worker toma el id de la cola y ejecuta la tarea; más tarde el cliente hace DELETE, la API cancela la tarea en curso, el worker recibe CancelledError y limpia, y el cliente recibe el estado cancelada.</desc>
+      <svg viewBox="0 0 1160 716" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="secuencia-post-delete-title secuencia-post-delete-desc">
+        <title id="secuencia-post-delete-title">Encargar una tarea y cancelarla en ejecución</title>
+        <desc id="secuencia-post-delete-desc">El cliente hace POST, la API encola el id y responde enseguida; un worker saca el id y crea una Task para la tarea; más tarde un DELETE hace que la API cancele solo esa Task, que recibe CancelledError y limpia, la API responde cancelada y el worker, que esperaba con asyncio.wait, vuelve a la cola.</desc>
         <defs>
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
           <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bf4520"/></marker>
@@ -69,110 +69,92 @@
         </defs>
 
         <rect width="100%" height="100%" fill="#f5f5f5"/>
-
-        <!-- LÍNEAS DE VIDA -->
-        <line x1="120" y1="104" x2="120" y2="540" stroke="rgba(45,49,66,0.22)" stroke-width="1" stroke-dasharray="3,3"/>
-        <line x1="360" y1="104" x2="360" y2="540" stroke="rgba(45,49,66,0.22)" stroke-width="1" stroke-dasharray="3,3"/>
-        <line x1="600" y1="104" x2="600" y2="540" stroke="rgba(45,49,66,0.22)" stroke-width="1" stroke-dasharray="3,3"/>
-        <line x1="840" y1="104" x2="840" y2="540" stroke="rgba(45,49,66,0.22)" stroke-width="1" stroke-dasharray="3,3"/>
-
-        <!-- BARRAS DE ACTIVACIÓN -->
-        <rect x="356" y="148" width="8" height="84" fill="rgba(45,49,66,0.06)" stroke="#4f5d75" stroke-width="0.8"/>
-        <rect x="836" y="268" width="8" height="236" fill="rgba(45,49,66,0.06)" stroke="#4f5d75" stroke-width="0.8"/>
-        <rect x="356" y="388" width="8" height="124" fill="rgba(45,49,66,0.06)" stroke="#4f5d75" stroke-width="0.8"/>
-
-        <!-- Marca de tiempo -->
-        <text x="24" y="368" fill="#5a6580" font-size="7" font-family="'Geist Mono', monospace" letter-spacing="0.14em">MÁS TARDE</text>
-
+<!-- LINEAS DE VIDA -->
+        <line x1="104" y1="104" x2="104" y2="632" stroke="rgba(45,49,66,0.22)" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="328" y1="104" x2="328" y2="632" stroke="rgba(45,49,66,0.22)" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="552" y1="104" x2="552" y2="632" stroke="rgba(45,49,66,0.22)" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="776" y1="104" x2="776" y2="632" stroke="rgba(45,49,66,0.22)" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="1000" y1="104" x2="1000" y2="632" stroke="rgba(45,49,66,0.22)" stroke-width="1" stroke-dasharray="3,3"/>
+        <!-- ACTIVACION -->
+        <rect x="324" y="148" width="8" height="72" fill="#ececec" stroke="#4f5d75" stroke-width="0.8"/>
+        <rect x="772" y="252" width="8" height="352" fill="#ececec" stroke="#4f5d75" stroke-width="0.8"/>
+        <rect x="996" y="284" width="8" height="264" fill="#ececec" stroke="#4f5d75" stroke-width="0.8"/>
+        <rect x="324" y="420" width="8" height="156" fill="#ececec" stroke="#4f5d75" stroke-width="0.8"/>
+        <text x="24" y="392" fill="#5a6580" font-size="7" font-family="'Geist Mono', monospace" letter-spacing="0.14em">MÁS TARDE</text>
         <!-- MENSAJES -->
-        <!-- 1 POST -->
-        <line x1="120" y1="152" x2="356" y2="152" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
-        <!-- 2 put -->
-        <line x1="364" y1="184" x2="600" y2="184" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
-        <!-- 3 respuesta inmediata (titular) -->
-        <line x1="356" y1="224" x2="120" y2="224" stroke="#bf4520" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
-        <!-- 4 get -->
-        <line x1="600" y1="272" x2="836" y2="272" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
-        <!-- 5 ejecuta (auto-mensaje) -->
-        <path d="M 844,304 H 880 V 336 H 844" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
-        <!-- 6 DELETE -->
-        <line x1="120" y1="392" x2="356" y2="392" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
-        <!-- 7 cancel -->
-        <line x1="364" y1="432" x2="836" y2="432" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
-        <!-- 8 CancelledError (auto-mensaje) -->
-        <path d="M 844,460 H 880 V 492 H 844" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
-        <!-- 9 respuesta DELETE -->
-        <line x1="356" y1="508" x2="120" y2="508" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
-
+        <line x1="104" y1="152" x2="324" y2="152" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <line x1="332" y1="184" x2="552" y2="184" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="324" y1="216" x2="104" y2="216" stroke="#bf4520" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <line x1="552" y1="256" x2="772" y2="256" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="780" y1="288" x2="996" y2="288" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M 1004,320 H 1040 V 352 H 1004" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="104" y1="424" x2="324" y2="424" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <line x1="332" y1="456" x2="996" y2="456" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M 1004,480 H 1040 V 512 H 1004" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="996" y1="544" x2="332" y2="544" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+        <line x1="324" y1="572" x2="104" y2="572" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+        <line x1="772" y1="604" x2="552" y2="604" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
         <!-- ETIQUETAS -->
-        <g font-family="'Geist Mono', monospace" font-size="8" text-anchor="middle" letter-spacing="0.06em" fill="#4f5d75">
-          <rect x="200" y="132" width="76" height="12" rx="2" fill="#f5f5f5"/>
-          <text x="238" y="141" fill="#2e5aa8">POST /TAREAS</text>
-          <rect x="458" y="164" width="48" height="12" rx="2" fill="#f5f5f5"/>
-          <text x="482" y="173">PUT(ID)</text>
-          <rect x="196" y="204" width="84" height="12" rx="2" fill="#f5f5f5"/>
-          <text x="238" y="213" fill="#bf4520">ID · PENDIENTE</text>
-          <rect x="686" y="252" width="64" height="12" rx="2" fill="#f5f5f5"/>
-          <text x="718" y="261">GET() → ID</text>
-          <rect x="888" y="314" width="80" height="12" rx="2" fill="#f5f5f5"/>
-          <text x="928" y="323">EJECUTA TAREA</text>
-          <rect x="200" y="372" width="76" height="12" rx="2" fill="#f5f5f5"/>
-          <text x="238" y="381" fill="#2e5aa8">DELETE /{ID}</text>
-          <rect x="456" y="412" width="52" height="12" rx="2" fill="#f5f5f5"/>
-          <text x="482" y="421">CANCEL()</text>
-          <rect x="888" y="470" width="84" height="12" rx="2" fill="#f5f5f5"/>
-          <text x="930" y="479">CANCELLEDERROR</text>
-          <rect x="208" y="488" width="60" height="12" rx="2" fill="#f5f5f5"/>
-          <text x="238" y="497">CANCELADA</text>
-        </g>
-
+        <rect x="183" y="132" width="66" height="12" rx="2" fill="#f5f5f5"/><text x="216" y="141" fill="#2e5aa8" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">POST /TAREAS</text>
+        <rect x="402" y="164" width="76" height="12" rx="2" fill="#f5f5f5"/><text x="440" y="173" fill="#5a6580" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">PUT_NOWAIT(ID)</text>
+        <rect x="178" y="196" width="76" height="12" rx="2" fill="#f5f5f5"/><text x="216" y="205" fill="#bf4520" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">ID · PENDIENTE</text>
+        <rect x="636" y="236" width="56" height="12" rx="2" fill="#f5f5f5"/><text x="664" y="245" fill="#5a6580" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">GET() → ID</text>
+        <rect x="858" y="268" width="60" height="12" rx="2" fill="#f5f5f5"/><text x="888" y="277" fill="#5a6580" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">CREATE_TASK</text>
+        <rect x="1055" y="330" width="70" height="12" rx="2" fill="#f5f5f5"/><text x="1090" y="339" fill="#5a6580" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">EJECUTA TAREA</text>
+        <rect x="183" y="404" width="66" height="12" rx="2" fill="#f5f5f5"/><text x="216" y="413" fill="#2e5aa8" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">DELETE /{ID}</text>
+        <rect x="405" y="436" width="70" height="12" rx="2" fill="#f5f5f5"/><text x="440" y="445" fill="#5a6580" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">TASK.CANCEL()</text>
+        <rect x="1052" y="490" width="76" height="12" rx="2" fill="#f5f5f5"/><text x="1090" y="499" fill="#5a6580" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">CANCELLEDERROR</text>
+        <rect x="407" y="524" width="66" height="12" rx="2" fill="#f5f5f5"/><text x="440" y="533" fill="#5a6580" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">TASK TERMINÓ</text>
+        <rect x="191" y="552" width="50" height="12" rx="2" fill="#f5f5f5"/><text x="216" y="561" fill="#5a6580" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">CANCELADA</text>
+        <rect x="629" y="584" width="70" height="12" rx="2" fill="#f5f5f5"/><text x="664" y="593" fill="#5a6580" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">PRÓXIMO GET()</text>
         <!-- ACTORES -->
-        <!-- Cliente (input) -->
-        <rect x="40" y="48" width="160" height="56" rx="6" fill="#f5f5f5"/>
-        <rect x="40" y="48" width="160" height="56" rx="6" fill="rgba(79,93,117,0.10)" stroke="#5a6580" stroke-width="1"/>
-        <rect x="48" y="54" width="28" height="12" rx="2" fill="transparent" stroke="rgba(90,101,128,0.40)" stroke-width="0.8"/>
-        <text x="62" y="63" fill="#5a6580" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">USR</text>
-        <text x="120" y="80" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Cliente</text>
-        <text x="120" y="95" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">curl</text>
-
-        <!-- API (backend) -->
-        <rect x="280" y="48" width="160" height="56" rx="6" fill="#f5f5f5"/>
-        <rect x="280" y="48" width="160" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
-        <rect x="288" y="54" width="28" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
-        <text x="302" y="63" fill="rgba(45,49,66,0.8)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">API</text>
-        <text x="360" y="80" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">API FastAPI</text>
-        <text x="360" y="95" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">endpoints async</text>
-
-        <!-- Cola (store) -->
-        <rect x="520" y="48" width="160" height="56" rx="6" fill="#f5f5f5"/>
-        <rect x="520" y="48" width="160" height="56" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
-        <rect x="528" y="54" width="32" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.40)" stroke-width="0.8"/>
-        <text x="544" y="63" fill="#4f5d75" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">COLA</text>
-        <text x="600" y="80" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Cola</text>
-        <text x="600" y="95" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">asyncio.Queue</text>
-
-        <!-- Worker (backend) -->
-        <rect x="760" y="48" width="160" height="56" rx="6" fill="#f5f5f5"/>
-        <rect x="760" y="48" width="160" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
-        <rect x="768" y="54" width="32" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
-        <text x="784" y="63" fill="rgba(45,49,66,0.8)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">POOL</text>
-        <text x="840" y="80" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Worker</text>
-        <text x="840" y="95" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">1 de los N</text>
-
-        <!-- LEYENDA -->
-        <line x1="40" y1="560" x2="960" y2="560" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
-        <text x="40" y="576" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.18em">LEYENDA</text>
+        <rect x="24" y="48" width="160" height="56" rx="6" fill="#f5f5f5"/>
+        <rect x="24" y="48" width="160" height="56" rx="6" fill="rgba(79,93,117,0.10)" stroke="#5a6580" stroke-width="1"/>
+        <rect x="32" y="54" width="28" height="12" rx="2" fill="transparent" stroke="rgba(90,101,128,0.40)" stroke-width="0.8"/>
+        <text x="46" y="63" fill="#5a6580" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">USR</text>
+        <text x="104" y="80" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Cliente</text>
+        <text x="104" y="96" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">curl</text>
+        <rect x="248" y="48" width="160" height="56" rx="6" fill="#f5f5f5"/>
+        <rect x="248" y="48" width="160" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+        <rect x="256" y="54" width="28" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+        <text x="270" y="63" fill="rgba(45,49,66,0.8)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">API</text>
+        <text x="328" y="80" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">API FastAPI</text>
+        <text x="328" y="96" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">endpoints async def</text>
+        <rect x="472" y="48" width="160" height="56" rx="6" fill="#f5f5f5"/>
+        <rect x="472" y="48" width="160" height="56" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+        <rect x="480" y="54" width="32" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.40)" stroke-width="0.8"/>
+        <text x="496" y="63" fill="#4f5d75" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">COLA</text>
+        <text x="552" y="80" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Cola</text>
+        <text x="552" y="96" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">asyncio.Queue</text>
+        <rect x="696" y="48" width="160" height="56" rx="6" fill="#f5f5f5"/>
+        <rect x="696" y="48" width="160" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+        <rect x="704" y="54" width="32" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+        <text x="720" y="63" fill="rgba(45,49,66,0.8)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">POOL</text>
+        <text x="776" y="80" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Worker</text>
+        <text x="776" y="96" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">1 de los N</text>
+        <rect x="920" y="48" width="160" height="56" rx="6" fill="#f5f5f5"/>
+        <rect x="920" y="48" width="160" height="56" rx="6" fill="rgba(191,69,32,0.08)" stroke="#bf4520" stroke-width="1"/>
+        <rect x="928" y="54" width="32" height="12" rx="2" fill="transparent" stroke="rgba(191,69,32,0.50)" stroke-width="0.8"/>
+        <text x="944" y="63" fill="#bf4520" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">TASK</text>
+        <text x="1000" y="80" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Task de la tarea</text>
+        <text x="1000" y="96" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">asyncio.timeout</text>
+        <!-- ANOTACIONES -->
+        <text x="756" y="316" fill="#2d3142" font-size="14" font-style="italic" font-family="'Instrument Serif', 'Noto Serif', serif" text-anchor="end">El worker espera con asyncio.wait:</text><text x="756" y="334" fill="#2d3142" font-size="14" font-style="italic" font-family="'Instrument Serif', 'Noto Serif', serif" text-anchor="end">la cancelación no le llega.</text>
+        <path d="M 758,322 H 770" fill="none" stroke="rgba(45,49,66,0.40)" stroke-width="1" stroke-dasharray="4,3"/><circle cx="772" cy="322" r="2" fill="#2d3142"/>
+        <text x="984" y="484" fill="#2d3142" font-size="14" font-style="italic" font-family="'Instrument Serif', 'Noto Serif', serif" text-anchor="end">async with cierra las conexiones;</text><text x="984" y="502" fill="#2d3142" font-size="14" font-style="italic" font-family="'Instrument Serif', 'Noto Serif', serif" text-anchor="end">el done callback fija cancelada.</text>
+        <line x1="40" y1="652" x2="1120" y2="652" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+        <text x="40" y="670" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.18em">LEYENDA</text>
         <g font-family="'Geist', sans-serif" font-size="8.5" fill="#4f5d75">
-          <rect x="40" y="590" width="4" height="18" fill="rgba(45,49,66,0.06)" stroke="#4f5d75" stroke-width="0.8"/>
-          <text x="52" y="602">Activo (tiene el control)</text>
-          <line x1="200" y1="600" x2="228" y2="600" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
-          <text x="236" y="602">Pedido HTTP</text>
-          <line x1="336" y1="600" x2="364" y2="600" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
-          <text x="372" y="602">Llamada interna</text>
-          <line x1="484" y1="600" x2="512" y2="600" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
-          <text x="520" y="602">Respuesta</text>
-          <line x1="612" y1="600" x2="640" y2="600" stroke="#bf4520" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
-          <text x="648" y="602">Respuesta inmediata del POST</text>
+        <rect x="40" y="682" width="4" height="18" fill="rgba(45,49,66,0.06)" stroke="#4f5d75" stroke-width="0.8"/>
+        <text x="52" y="694">En curso (o suspendida en un await)</text>
+        <line x1="246" y1="691" x2="274" y2="691" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <text x="282" y="694">Pedido HTTP</text>
+        <line x1="362" y1="691" x2="390" y2="691" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <text x="398" y="694">Llamada interna</text>
+        <line x1="497" y1="691" x2="525" y2="691" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+        <text x="533" y="694">Respuesta</text>
+        <line x1="603" y1="691" x2="631" y2="691" stroke="#bf4520" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <text x="639" y="694">Respuesta inmediata del POST</text>
         </g>
       </svg>
     </div>

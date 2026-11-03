@@ -1,0 +1,7 @@
+.git
+datos
+docs
+pruebas
+consigna
+__pycache__
+*.pyc

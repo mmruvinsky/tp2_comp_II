@@ -1,0 +1,103 @@
+Fecha: 2026-11-02T23:23:21-03:00  Núcleos: 12  CPU: AMD Ryzen 5 5600 6-Core Processor
+
+=== Medición 1: concurrencia I/O (WORKERS=10) ===
+
+Servidor local, 0.5 s por URL, 100 KiB (5 reps)
+  secuencial :  10.025 s  [10.026, 10.025, 10.026, 10.025, 10.025]
+  concurrente:   0.503 s  [0.506, 0.503, 0.504, 0.502, 0.502]
+  speedup    :   19.95 x
+
+Internet real, https://example.com (5 reps)
+  secuencial :   0.597 s  [0.708, 0.589, 0.6, 0.561, 0.597]
+  concurrente:   0.048 s  [0.146, 0.043, 0.048, 0.051, 0.044]
+  speedup    :   12.45 x
+
+=== Medición 2: event loop bloqueado ===
+MODO_HASH=bloqueante
+  hash de 10,000,000 iteraciones: 3.54 s
+  POST /tareas: 0.7 ms
+  GET sin carga: n=100   mediana=      0.6 ms  p95=      0.9 ms  max=      1.9 ms
+  GET con hash : n=1     mediana=   3544.9 ms  p95=   3544.9 ms  max=   3544.9 ms
+MODO_HASH=hilo
+  hash de 10,000,000 iteraciones: 3.78 s
+  POST /tareas: 0.6 ms
+  GET sin carga: n=100   mediana=      0.6 ms  p95=      0.8 ms  max=      0.9 ms
+  GET con hash : n=112   mediana=     10.8 ms  p95=     16.1 ms  max=     16.2 ms
+MODO_HASH=proceso
+  hash de 10,000,000 iteraciones: 3.67 s
+  POST /tareas: 0.7 ms
+  GET sin carga: n=100   mediana=      0.6 ms  p95=      0.8 ms  max=      1.0 ms
+  GET con hash : n=331   mediana=      0.6 ms  p95=      0.8 ms  max=      1.0 ms
+
+=== Medición 3a: esperar(1 s), WORKERS=10 ===
+   tareas   total s  tareas/s  ejecución s  espera cola s
+        1      1.00       1.0        1.000          0.000
+        5      1.00       5.0        1.001          0.000
+       10      1.00      10.0        1.001          0.000
+       20      2.01      10.0        1.001          0.500
+       50      5.02      10.0        1.002          1.997
+      100     10.02      10.0        1.001          4.496
+
+=== Medición 3b: hashear, WORKERS=64 ===
+  (12 núcleos, 2,000,000 iteraciones c/u)
+   tareas   total s  tareas/s  ejecución s  espera cola s
+        1      0.74       1.4        0.736          0.000
+        2      0.74       2.7        0.740          0.000
+        4      0.79       5.1        0.769          0.000
+        6      0.95       6.3        0.913          0.001
+        8      1.12       7.2        1.072          0.001
+       12      1.62       7.4        1.588          0.001
+       16      2.16       7.4        2.120          0.001
+       24      3.20       7.5        3.133          0.001
+       48      6.50       7.4        6.324          0.008
+
+=== Medición 3c: descargar, WORKERS=2000, LIMITE_CONEXIONES=100 ===
+  (una URL por tarea, 0.5 s cada una)
+   tareas   total s  tareas/s  ejecución s  espera cola s
+       10      0.51      19.7        0.505          0.001
+       50      0.54      93.2        0.511          0.003
+      100      0.55     181.3        0.511          0.006
+      200      1.06     189.3        0.747          0.010
+      500      2.61     191.5        1.489          0.017
+     1000      5.12     195.5        2.667          0.018
+
+=== Medición 3d: avalancha de esperar(1 s), WORKERS=10000 ===
+  1000 POST en 0.28 s (3576 POST/s)
+  GET /tareas/{id}  : n=20    mediana=      0.3 ms  p95=      2.5 ms  max=      2.5 ms
+  GET /estadisticas : n=20    mediana=      0.8 ms  p95=      0.8 ms  max=      0.8 ms
+  GET /tareas       : n=5     mediana=      7.1 ms  p95=      8.7 ms  max=      8.7 ms
+  total 1.24 s; ejecución promedio 1.014 s (ideal 1.000 s); espera promedio 0.016 s
+  5000 POST en 1.30 s (3840 POST/s)
+  GET /tareas/{id}  : n=20    mediana=      0.3 ms  p95=      6.5 ms  max=      6.5 ms
+  GET /estadisticas : n=20    mediana=      1.9 ms  p95=      4.5 ms  max=      4.5 ms
+  GET /tareas       : n=5     mediana=     43.2 ms  p95=     48.7 ms  max=     48.7 ms
+  total 2.26 s; ejecución promedio 1.039 s (ideal 1.000 s); espera promedio 0.016 s
+  10000 POST en 2.72 s (3676 POST/s)
+  GET /tareas/{id}  : n=20    mediana=      0.3 ms  p95=      9.1 ms  max=      9.1 ms
+  GET /estadisticas : n=20    mediana=      6.1 ms  p95=      9.3 ms  max=      9.3 ms
+  GET /tareas       : n=5     mediana=    103.9 ms  p95=    140.0 ms  max=    140.0 ms
+  total 3.66 s; ejecución promedio 1.081 s (ideal 1.000 s); espera promedio 0.016 s
+
+=== Medición 3e: ¿el límite de POST/s es el cliente? Dos clientes a la vez ===
+  5000 POST en 2.73 s (1830 POST/s)
+  5000 POST en 2.73 s (1829 POST/s)
+
+=== Medición 3f: tareas de golpe con WORKERS=10 (la cola crece) ===
+  memoria antes: 58 MiB
+  10000 POST en 2.38 s (4194 POST/s)
+  memoria después: 62 MiB
+  GET /tareas/{id}  : n=20    mediana=      0.3 ms  p95=      2.3 ms  max=      2.3 ms
+  GET /estadisticas : n=20    mediana=      1.7 ms  p95=      1.8 ms  max=      1.8 ms
+  GET /tareas       : n=3     mediana=     61.8 ms  p95=     66.2 ms  max=     66.2 ms
+  apagado: 1.0 s, exit=0
+  2026-11-03 02:25:59,890 INFO tp2.main: Estado volcado en /srv/datos/estado_20261103_022559.json (10000 tareas)
+  memoria antes: 57 MiB
+  100000 POST en 23.15 s (4319 POST/s)
+  memoria después: 115 MiB
+  GET /tareas/{id}  : n=20    mediana=      0.3 ms  p95=     26.0 ms  max=     26.0 ms
+  GET /estadisticas : n=20    mediana=     16.8 ms  p95=     17.5 ms  max=     17.5 ms
+  GET /tareas       : n=3     mediana=    749.5 ms  p95=    769.0 ms  max=    769.0 ms
+  apagado: 1.9 s, exit=0
+  2026-11-03 02:26:28,563 INFO tp2.main: Estado volcado en /srv/datos/estado_20261103_022628.json (100000 tareas)
+  volcado: 3852922 bytes
+  volcado: 38522413 bytes
