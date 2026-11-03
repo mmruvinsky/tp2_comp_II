@@ -148,7 +148,7 @@ docker compose run --rm -T -e PYTHONPATH=/srv api python - < pruebas/cancelar_de
 tandas** de 100.000 iteraciones, cada una con su `run_in_executor`: una cancelación o
 un timeout liberan el worker enseguida y el slot del executor se libera en cuanto
 termina la tanda en curso (unos 37 ms). Tiene un costo: 10.000.000 de iteraciones
-tardan 3,67 s por tandas contra 3,54 s de una sola vez, un 4 % más. También hace justo
+tardan 3,72 s por tandas contra 3,51 s de una sola vez, un 6 % más. También hace justo
 el reparto: con más hashes que procesos, las tandas se turnan en la cola del executor.
 
 Los timeouts usan `asyncio.timeout()`, que por dentro hace lo mismo que un `DELETE`
@@ -178,9 +178,12 @@ proceso del pool con `kill -9`: las tareas `hashear` pasan a `fallida` con
   grande que queda. Con 100.000 tareas, un `GET /tareas/{id}` lanzado mientras tanto quedó
   trabado entre 720 y 810 ms, igual que el propio listado, así que es bloqueo real y no solo
   transferencia (`pruebas/bloqueo_get.py`).
-- **`/estadisticas`**: también recorre todo el registro (17 ms con 100.000 tareas).
-- **Menores, sin medir por separado**: escribir un log, arrancar un proceso del pool y armar
-  la lista de tareas para el volcado corren en el hilo del loop.
+- **`/estadisticas`**: también recorre todo el registro (16 ms con 100.000 tareas).
+- **Arrancar los procesos del pool**: ocurre bajo demanda y en el hilo del loop. Con 12 hashes
+  a la vez y el pool en frío, el peor `GET /estadisticas` fue de 12,3 ms, contra 5,6 ms con el
+  pool caliente. `pruebas/test_tics.py`, que crea el pool en frío, muestra lo mismo: un atraso
+  de 57 ms que baja a 0,9 ms si el pool ya arrancó.
+- **Menores, sin medir por separado**: escribir un log y armar la lista de tareas para el volcado.
 - **Ya resueltos**: el hash va a otro proceso; `executor.shutdown` y el disco, a `to_thread`.
   El modo `MODO_HASH=bloqueante` existe solo para la medición 2.
 
@@ -235,18 +238,23 @@ repeticiones.
 
 | Destino | Secuencial | Concurrente | Speedup |
 |---------|-----------|-------------|---------|
-| Servidor local, 0,5 s por URL, 100 KiB | 10,025 s | 0,503 s | **19,95x** |
-| Internet real, `https://example.com` | 0,597 s | 0,048 s | **12,45x** |
+| Servidor local, 0,5 s por URL, 100 KiB | 10,024 s | 0,502 s | **19,95x** |
+| Internet real, `https://example.com` | 0,760 s | 0,036 s | **21,41x** |
 
 **Interpretación.** Con el servidor local, secuencial tarda la suma (20 × 0,5 s) y
 concurrente lo que la más lenta (0,5 s): el speedup roza el máximo teórico de 20, porque
-casi todo el tiempo es espera, y mientras se espera el loop atiende otra descarga. En
-Internet el speedup es menor y más ruidoso, porque la latencia ya es muy baja y pesan
-más los costos locales.
+casi todo el tiempo es espera, y mientras se espera el loop atiende otra descarga.
 
-Se usa la mediana porque en una corrida previa una repetición secuencial contra Internet
-dio 11,3 s (las otras, unos 0,55 s), lo que llevaba el speedup por promedio a un absurdo
-62x. No se reprodujo en la corrida final y no se investigó la causa.
+**El dato de Internet es muy ruidoso, y el confiable es el del servidor local.** Una corrida
+anterior, con la misma medición, dio 12,45x (0,597 s contra 0,048 s). Pasar de 20x no significa
+más paralelismo: 20 es el tope solo si cada URL tarda siempre lo mismo, pero secuencial y
+concurrente se miden en momentos distintos, la red cambia entre uno y otro, y con tiempos tan
+bajos cualquier variación pesa. En esta corrida, las repeticiones secuenciales fueron de 0,488 s
+a 1,268 s.
+
+Se usa la mediana porque en una corrida previa una repetición secuencial contra Internet dio
+11,3 s (las otras, unos 0,55 s), lo que llevaba el speedup por promedio a 62x. No se reprodujo
+en las corridas siguientes y no se investigó la causa.
 
 ### Medición 2: el event loop bloqueado
 
@@ -255,13 +263,13 @@ sin parar. Pool ya calentado.
 
 | `MODO_HASH` | Duración del hash | GETs durante el hash | Mediana | p95 | Máximo |
 |-------------|-------------------|----------------------|---------|-----|--------|
-| Sin carga (línea de base) | — | 100 | 0,6 ms | 0,8 ms | 1,0 ms |
-| `bloqueante` (en el loop) | 3,54 s | **1** | **3.544,9 ms** | 3.544,9 ms | 3.544,9 ms |
-| `hilo` (`ThreadPoolExecutor`) | 3,78 s | 112 | 10,8 ms | 16,1 ms | 16,2 ms |
-| `proceso` (`ProcessPoolExecutor`) | 3,67 s | 331 | **0,6 ms** | 0,8 ms | 1,0 ms |
+| Sin carga (línea de base, antes de cada modo) | — | 100 | 0,6–0,7 ms | 0,8–0,9 ms | 1,0–1,5 ms |
+| `bloqueante` (en el loop) | 3,51 s | **1** | **3.506,4 ms** | 3.506,4 ms | 3.506,4 ms |
+| `hilo` (`ThreadPoolExecutor`) | 3,68 s | 111 | 10,8 ms | 16,1 ms | 16,5 ms |
+| `proceso` (`ProcessPoolExecutor`) | 3,72 s | 334 | **0,6 ms** | 0,9 ms | 1,0 ms |
 
 **Interpretación.** Sin executor, el servidor quedó sordo: el único `GET` tardó lo mismo
-que el hash, unas 5.900 veces la mediana normal. El hash casi no cambia de duración en
+que el hash, unas 5.800 veces la mediana normal. El hash casi no cambia de duración en
 los tres casos: lo que cambia es **quién queda bloqueado**. Con hilos el loop responde,
 pero compite por el GIL: `hashlib` no lo suelta con entradas chicas, y cada request
 espera a que el hilo lo ceda. Con procesos hay otro GIL en otro núcleo, y la latencia es
@@ -275,10 +283,10 @@ Cada tipo de tarea se satura por un motivo distinto, así que se midieron por se
 
 | Tareas | Total | Tareas/s | Ejecución promedio | Espera en cola promedio |
 |-------:|------:|---------:|-------------------:|------------------------:|
-| 1 | 1,00 s | 1,0 | 1,000 s | 0,000 s |
+| 1 | 1,00 s | 1,0 | 1,001 s | 0,000 s |
 | 10 | 1,00 s | 10,0 | 1,001 s | 0,000 s |
-| 20 | 2,01 s | 10,0 | 1,001 s | 0,500 s |
-| 50 | 5,02 s | 10,0 | 1,002 s | 1,997 s |
+| 20 | 2,00 s | 10,0 | 1,001 s | 0,500 s |
+| 50 | 5,01 s | 10,0 | 1,001 s | 1,995 s |
 | 100 | 10,02 s | 10,0 | 1,001 s | 4,496 s |
 
 Hasta 10 tareas, nada se degrada. Después, cada tarea sigue tardando 1 s, pero se forma
@@ -289,16 +297,16 @@ falta gente: subir `WORKERS` lo resuelve.
 
 | Tareas | Total | Tareas/s | Ejecución promedio |
 |-------:|------:|---------:|-------------------:|
-| 1 | 0,74 s | 1,4 | 0,736 s |
-| 2 | 0,74 s | 2,7 | 0,740 s |
-| 4 | 0,79 s | 5,1 | 0,769 s |
+| 1 | 0,74 s | 1,4 | 0,740 s |
+| 2 | 0,77 s | 2,6 | 0,764 s |
+| 4 | 0,81 s | 4,9 | 0,794 s |
 | 6 | 0,95 s | 6,3 | 0,913 s |
-| 8 | 1,12 s | 7,2 | 1,072 s |
-| 12 | 1,62 s | 7,4 | 1,588 s |
-| 24 | 3,20 s | 7,5 | 3,133 s |
-| 48 | 6,50 s | 7,4 | 6,324 s |
+| 8 | 1,15 s | 7,0 | 1,083 s |
+| 12 | 1,62 s | 7,4 | 1,580 s |
+| 24 | 3,22 s | 7,5 | 3,147 s |
+| 48 | 6,56 s | 7,3 | 6,387 s |
 
-El rendimiento se aplana en unas **7,4 tareas/s, alrededor de 5,4 veces una sola**, no
+El rendimiento se aplana en unas **7,4 tareas/s, alrededor de 5,5 veces una sola**, no
 12. Es consistente con los 6 núcleos físicos: los 12 lógicos comparten unidades de
 ejecución, y a partir de 6 tareas cada una ya tarda más. Más workers no ayudan: la espera
 en cola es ~0 y el tiempo pasa dentro del executor. A diferencia de 3a, acá el recurso
@@ -309,10 +317,10 @@ escaso es de verdad la CPU.
 | Tareas | Total | Tareas/s | Ejecución promedio |
 |-------:|------:|---------:|-------------------:|
 | 10 | 0,51 s | 19,7 | 0,505 s |
-| 100 | 0,55 s | 181,3 | 0,511 s |
-| 200 | 1,06 s | 189,3 | 0,747 s |
-| 500 | 2,61 s | 191,5 | 1,489 s |
-| 1000 | 5,12 s | 195,5 | 2,667 s |
+| 100 | 0,56 s | 178,8 | 0,512 s |
+| 200 | 1,05 s | 189,6 | 0,747 s |
+| 500 | 2,61 s | 191,3 | 1,489 s |
+| 1000 | 5,13 s | 194,9 | 2,668 s |
 
 El techo teórico es `LIMITE_CONEXIONES / demora` = 100 / 0,5 s = 200 tareas/s, y se
 midieron unas 195. Pasadas las 100 tareas, la "ejecución" crece porque incluye esperar
@@ -323,13 +331,13 @@ freno, no un límite físico.
 
 | Tareas | POST/s | `GET /tareas/{id}` (mediana) | `/estadisticas` (mediana) | `GET /tareas` (mediana) | Ejecución promedio (ideal 1 s) |
 |-------:|-------:|-----------------------------:|--------------------------:|------------------------:|-------------------------------:|
-| 1.000 | 3.576 | 0,3 ms | 0,8 ms | 7,1 ms | 1,014 s |
-| 5.000 | 3.840 | 0,3 ms | 1,9 ms | 43,2 ms | 1,039 s |
-| 10.000 | 3.676 | 0,3 ms | 6,1 ms | 103,9 ms | 1,081 s |
+| 1.000 | 3.341 | 0,3 ms | 0,8 ms | 7,9 ms | 1,024 s |
+| 5.000 | 3.535 | 0,3 ms | 2,3 ms | 49,9 ms | 1,050 s |
+| 10.000 | 3.301 | 0,3 ms | 6,4 ms | 107,9 ms | 1,091 s |
 
-El techo de la API está en unos **3.700 POST/s**: un solo hilo parseando HTTP y validando
-con Pydantic. El límite no era el cliente: dos clientes a la vez sumaron 3.659 POST/s, lo
-mismo que uno solo. El `sleep` de 1 s llega a tardar 1,08 s porque el loop ya tiene
+El techo de la API está en unos **3.400 POST/s**: un solo hilo parseando HTTP y validando
+con Pydantic. El límite no era el cliente: dos clientes a la vez sumaron 3.437 POST/s, lo
+mismo que uno solo. El `sleep` de 1 s llega a tardar 1,09 s porque el loop ya tiene
 demasiado para hacer: es lo primero que se ve cuando se satura. La latencia de
 `GET /tareas` crece lineal con el registro.
 
@@ -340,16 +348,18 @@ de arriba. Con la configuración por defecto (`WORKERS=10`), usando `esperar(1 s
 
 | Tareas | POST/s | Memoria de la API | `GET /tareas` (mediana) | `/estadisticas` (mediana) | Apagado |
 |-------:|-------:|------------------:|------------------------:|--------------------------:|--------:|
-| 10.000 | 4.194 | 58 → 62 MiB | 61,8 ms | 1,7 ms | 1,0 s |
-| 100.000 | 4.319 | 57 → 115 MiB | 749,5 ms | 16,8 ms | 1,9 s (volcado de 38,5 MB) |
+| 10.000 | 4.111 | 58 → 62 MiB | 65,3 ms | 1,8 ms | 1,0 s |
+| 100.000 | 4.087 | 58 → 115 MiB | 816,0 ms | 16,2 ms | 2,0 s (volcado de 38,5 MB) |
 
 **No se rompe la memoria.** Lo primero que se degrada es la **espera**: el servidor acepta
 las 10.000 en 2,4 s, pero terminarlas tardaría unos 1.000 s (calculado: 10.000 × 1 s / 10
 workers). Lo segundo es **`GET /tareas`**, que arma y serializa toda la lista dentro del
-loop: con 100.000 tareas bloquea el loop 0,75 s en cada llamada, y **eso congela a todos
-los demás**. De lo medido, es el bloqueo más grande que queda en el código. Hay otros
-menores: `/estadisticas` (17 ms con 100.000 tareas), y arrancar un proceso del pool o
-escribir un log también corren en el loop, aunque no se midieron por separado.
+loop: con 100.000 tareas bloquea el loop unos 0,8 s en cada llamada, y **eso congela a todos
+los demás**. De lo medido, es el bloqueo más grande que queda en el código.
+
+Acá se llega a unos 4.100 POST/s, contra 3.400 con 10.000 workers. Probablemente sea porque con 10
+workers casi todo `POST` solo encola, mientras que con 10.000 también despierta a un worker que crea
+una `Task`; no se midió por separado.
 
 ## 5. Conceptos del curso aplicados
 
@@ -391,7 +401,7 @@ medición 2 es exactamente ese bug, y cuesta 3,5 s de sordera.
   backpressure: ante una avalancha crecen la espera y la memoria, sin rechazar a nadie
   (medición 3e). Una cola acotada que responda 503 lo resolvería.
 - **`GET /tareas` no tiene paginación** y es lineal en la cantidad de tareas: con 100.000
-  bloquea el loop 0,75 s por llamada. `/estadisticas` también es lineal, aunque pesa menos.
+  bloquea el loop unos 0,8 s por llamada. `/estadisticas` también es lineal, aunque pesa menos.
 - **Las tareas `pendiente` no se retoman.** El volcado las registra y el arranque solo lo
   informa; se pierde ese trabajo pedido.
 - **Si muere un proceso del pool, el executor queda roto hasta reiniciar**: todo `hashear`
@@ -408,7 +418,7 @@ medición 2 es exactamente ese bug, y cuesta 3,5 s de sordera.
   sin límite. Quedan a nombre de `root` porque el contenedor corre como root.
 - **Sin autenticación ni rate limiting**, y `descargar` pide cualquier URL que le pasen,
   así que no debería exponerse fuera de un entorno de prueba.
-- **Un solo proceso de API**: el techo es de unos 3.700 POST/s.
+- **Un solo proceso de API**: el techo es de 3.400 a 4.100 POST/s, según la cantidad de workers.
 - **Las mediciones comparten máquina** entre cliente y servidor, y los números de Internet
   dependen de la red del momento.
 
